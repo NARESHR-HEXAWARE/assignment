@@ -1,6 +1,3 @@
-/* Execute AFTER schema.sql in SQL Server Management Studio.
-   Covers INSERT, UPDATE, DELETE, ALTER TABLE ADD, sp_rename, DROP CONSTRAINT,
-   and WHERE / LIKE queries. This demo uses fictional identities and diagnoses. */
 USE HospitalClinicalDB;
 GO
 SET NOCOUNT ON;
@@ -42,7 +39,6 @@ INSERT INTO dbo.Visit (patient_id,doctor_id,visit_date,diagnosis,visit_status) V
 (10,7,'2026-10-29',N'General consultation','Completed'),
 (1,1,'2026-11-02',N'Blood pressure follow-up','Open'),
 (3,3,'2026-11-07',N'Sprain follow-up','Open');
-/* The default visit_status is 'Open' if omitted. */
 INSERT INTO dbo.Visit (patient_id,doctor_id,visit_date,diagnosis)
 VALUES (2,7,'2026-11-12',N'Routine assessment');
 
@@ -67,7 +63,6 @@ UPDATE dbo.Patient SET address_line=N'10 Park Street, Updated' WHERE patient_id=
 PRINT 'AFTER UPDATE';
 SELECT patient_id,patient_name,address_line FROM dbo.Patient WHERE patient_id=2;
 
-/* Temporary record inserted and deleted with WHERE, leaving real visit history intact. */
 INSERT INTO dbo.Patient (patient_name,address_line,phone)
 VALUES (N'Temporary Test Patient',N'Test Address','9000000099');
 PRINT 'BEFORE DELETE';
@@ -76,21 +71,18 @@ DELETE FROM dbo.Patient WHERE phone='9000000099';
 PRINT 'AFTER DELETE (0 rows expected)';
 SELECT patient_id,patient_name FROM dbo.Patient WHERE phone='9000000099';
 
-/* Patients who visited in October 2026, using a safe half-open range. */
 SELECT DISTINCT p.patient_id,p.patient_name
 FROM dbo.Patient AS p
 JOIN dbo.Visit AS v ON v.patient_id=p.patient_id
 WHERE v.visit_date >= '2026-10-01' AND v.visit_date < '2026-11-01'
 ORDER BY p.patient_name;
 
-/* Doctors in a named department, using WHERE and LIKE. */
 SELECT d.doctor_name,dept.department_name
 FROM dbo.Doctor AS d
 JOIN dbo.Department AS dept ON dept.department_id=d.department_id
 WHERE dept.department_name LIKE N'Cardio%'
 ORDER BY d.doctor_name;
 
-/* ALTER TABLE demonstrations (run once after schema.sql): */
 PRINT 'BEFORE ALTER - insurance_id is not present';
 SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME='Patient' AND COLUMN_NAME='insurance_id';
