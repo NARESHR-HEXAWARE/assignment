@@ -1,26 +1,3 @@
-/*
-INSURANCE POLICY ADMINISTRATION – MANAGEMENT REPORTS
-SQL Server 2019+ | Run this complete script in SSMS.
-This self-contained demonstration uses a separate database and RECREATES its sample
-objects on each run. All monetary amounts are illustrative, not real customer data.
-Date-dependent reports use the server's current date (GETDATE()).
-
-OUTPUT GUIDE:
-R1: Expiring policies: PolicyNumberMasked, CustomerName, ProductName,
-    ExpiryDate, DaysToExpiry, AgentName.
-R2: ProductName, PremiumCollected, PaymentCount (paid transactions only).
-R3: CustomerID, CustomerName, ActivePolicyCount, ActivePolicyNumbers.
-R4: ProductName, PaidPremium, SettledClaims, ClaimRatioPercent.
-    Claim ratio = settled claim amounts / paid premiums * 100 (not claim count).
-R5: PolicyID, PolicyNumberMasked, CustomerName, ProductName.
-R6: AgeBand, AveragePaidPremiumPerPolicy, PoliciesWithPayments.
-R7: PolicyMonth, NewPolicies.
-R8: AgentName, TotalPremiumCollected, PaymentCount.
-R9: PolicyAgeBand, PolicyNumberMasked, CustomerName, DaysSinceStart (functions demo).
-
-WHERE VS HAVING: In R3, WHERE filters individual policy rows to Active
-before grouping; HAVING filters grouped customers to COUNT(*) > 1.
-*/
 SET NOCOUNT ON;
 GO
 IF DB_ID(N'InsuranceManagementReportsDB') IS NULL
@@ -148,7 +125,6 @@ WHERE p.Status='Active'
   AND p.ExpiryDate >= CAST(GETDATE() AS DATE)
   AND p.ExpiryDate <= DATEADD(DAY,30,CAST(GETDATE() AS DATE))
 ORDER BY p.ExpiryDate,p.PolicyID;
--- EXPECTED sample: POL endings 0001,0005,0010,0002; days 10,15,22,25.
 
 -- R2. Premium collected per product (payments actually paid).
 SELECT pr.ProductName,CAST(COALESCE(SUM(pay.Amount),0) AS DECIMAL(14,2)) AS PremiumCollected,
@@ -157,10 +133,7 @@ FROM dbo.Products pr
 LEFT JOIN dbo.Policies p ON p.ProductID=pr.ProductID
 LEFT JOIN dbo.PremiumPayments pay ON pay.PolicyID=p.PolicyID AND pay.PaymentStatus='Paid'
 GROUP BY pr.ProductID,pr.ProductName
-ORDER BY PremiumCollected DESC,pr.ProductName;
--- EXPECTED: Health 31000; Life 33000; Home 24000; Motor 13000; Travel 5500.
-
--- R3. Customers with more than one active policy: WHERE vs HAVING.
+ORDER BY PremiumCollected DESC,pr.ProductName
 SELECT c.CustomerID,UPPER(CONCAT(c.FirstName,' ',c.LastName)) AS CustomerName,
        COUNT(*) AS ActivePolicyCount,
        STRING_AGG(p.PolicyNumber,', ') WITHIN GROUP (ORDER BY p.PolicyNumber) AS ActivePolicyNumbers
@@ -171,10 +144,6 @@ WHERE p.Status='Active' AND p.StartDate<=CAST(GETDATE() AS DATE)
 GROUP BY c.CustomerID,c.FirstName,c.LastName
 HAVING COUNT(*)>1
 ORDER BY ActivePolicyCount DESC,c.CustomerID;
--- EXPECTED: Arun Kumar (2), Meera Shah (2), Priya Nair (2).
-
--- R4. Claim ratio per product: settled claims / collected premiums.
--- Pre-aggregate payments and claims by policy to avoid multiplying rows.
 WITH Paid AS (
  SELECT PolicyID,SUM(Amount) AS PaidAmount
  FROM dbo.PremiumPayments WHERE PaymentStatus='Paid' GROUP BY PolicyID
@@ -251,10 +220,6 @@ JOIN dbo.Policies p ON p.AgentID=a.AgentID
 JOIN dbo.PremiumPayments pay ON pay.PolicyID=p.PolicyID AND pay.PaymentStatus='Paid'
 GROUP BY a.AgentID,a.AgentName
 ORDER BY TotalPremiumCollected DESC,a.AgentID;
--- EXPECTED: Anika 33500, Isha 26500, Riya 20000, Vikram 13000, Kabir 10500.
-
--- R9. Supplementary age-band / masked-number report for required SQL functions.
--- "PolicyAgeBand" here means years since policy StartDate, not customer's age.
 SELECT p.PolicyID,
        CONCAT(UPPER(LEFT(pr.ProductName,3)),'-',REPLICATE('X',LEN(p.PolicyNumber)-4),RIGHT(p.PolicyNumber,4)) AS PolicyNumberMasked,
        CONCAT(UPPER(c.LastName),', ',c.FirstName) AS CustomerName,
@@ -267,6 +232,4 @@ FROM dbo.Policies p
 JOIN dbo.Customers c ON c.CustomerID=p.CustomerID
 JOIN dbo.Products pr ON pr.ProductID=p.ProductID
 ORDER BY p.PolicyID;
--- NOTE: FORMAT can be used for display: FORMAT(p.ExpiryDate,'dd MMM yyyy').
--- It is intentionally omitted from date predicates for better index utilization.
 GO
