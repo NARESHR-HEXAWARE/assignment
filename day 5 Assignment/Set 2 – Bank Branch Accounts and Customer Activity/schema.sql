@@ -1,5 +1,4 @@
-/* BANK BRANCH — schema.sql | SQL Server 2019+ | Run before seed_data.sql.
-   Fresh demonstration database. Delete/recreate deliberately resets previous demo data. */
+
 USE master;
 GO
 IF DB_ID(N'BankBranchAssignmentDB') IS NOT NULL
@@ -13,14 +12,6 @@ GO
 USE BankBranchAssignmentDB;
 GO
 
-/* 3NF / BCNF: each relation stores facts determined by its candidate key.
-   Assumptions: email, employee code, branch code and account-type code are unique;
-   one account is owned by one customer and managed by one relationship manager.
-   Transactions are identified both by TransactionID and (AccountID, SequenceNo).
-   Deletion policy: RESTRICT/NO ACTION for all financial parent relationships;
-   deleting a customer/branch/manager cannot erase account/transaction history.
-   ON UPDATE CASCADE for natural codes is unnecessary: FKs use immutable surrogate IDs.
-*/
 CREATE TABLE dbo.Branches (
     BranchID INT IDENTITY(1,1) CONSTRAINT PK_Branches PRIMARY KEY,
     BranchCode VARCHAR(12) NOT NULL CONSTRAINT UQ_Branches_Code UNIQUE,
@@ -80,7 +71,7 @@ CREATE TABLE dbo.Accounts (
         REFERENCES dbo.RelationshipManagers(ManagerID, BranchID) ON DELETE NO ACTION
 );
 GO
-/* Prevent mismatched SavingsFlag and account type; 'SAV' is a business code. */
+
 CREATE TRIGGER dbo.TR_Accounts_ValidateSavingsFlag
 ON dbo.Accounts AFTER INSERT, UPDATE AS
 BEGIN
@@ -111,9 +102,3 @@ GO
 CREATE INDEX IX_Accounts_OpenedBalance ON dbo.Accounts(OpenedDate, Balance);
 CREATE INDEX IX_Transactions_AccountAt ON dbo.AccountTransactions(AccountID, TransactionAt DESC);
 GO
-/* Candidate keys: Branches {BranchID}, {BranchCode}; Customers {CustomerID}, {Email};
-   AccountTypes {AccountTypeID}, {TypeCode}, {TypeName}; Managers {ManagerID},
-   {EmployeeCode}; Accounts {AccountID}, {AccountNumber}; Transactions
-   {TransactionID}, {AccountID, SequenceNo} (composite candidate key).
-   (ManagerID, BranchID) is a UNIQUE superkey for branch-consistent FK,
-   NOT a minimal candidate key, since ManagerID alone is already unique. */
