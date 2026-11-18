@@ -1,4 +1,4 @@
-/* BANK BRANCH — seed_data.sql | Run AFTER schema.sql. */
+
 USE BankBranchAssignmentDB;
 GO
 SET NOCOUNT ON;
@@ -84,10 +84,6 @@ SELECT AccountNumber,BranchID,AccountTypeID,Balance FROM dbo.Accounts
 WHERE (BranchID IN (1,2) OR AccountTypeID IN (1,3)) AND Balance >= 30000
 ORDER BY AccountNumber;
 
-/* Task 3: each DDL/DML identity demo uses its OWN disposable table.
-   SQL Server: DELETE preserves identity counter; TRUNCATE reseeds; DROP removes
-   object entirely. All three are transactional inside an explicit transaction.
-   SELECT rows after test INSERTS to observe identity values. */
 IF OBJECT_ID('dbo.DemoDelete','U') IS NOT NULL DROP TABLE dbo.DemoDelete;
 CREATE TABLE dbo.DemoDelete(ID INT IDENTITY(1,1) PRIMARY KEY,Note VARCHAR(30));
 INSERT dbo.DemoDelete(Note) VALUES ('first'),('second');
