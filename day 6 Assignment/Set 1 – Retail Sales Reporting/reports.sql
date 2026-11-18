@@ -1,21 +1,10 @@
-/*
-DAY 6 - SET 1: RETAIL SALES REPORTING (SQL Server 2025)
-Single-file submission: reports.sql
-Run this entire script in SQL Server Management Studio (SSMS).
-Creates an independent sample database so it does not change earlier assignments.
-Money values are in INR; all sample dates are in 2026.
-Revenue = SUM(order_items.quantity * order_items.unit_price).
-Only completed orders count as realized sales; pending and cancelled orders do not.
-Expected output descriptions are documented immediately before each report.
-*/
-
 IF DB_ID(N'RetailSalesReportingDB') IS NULL
     CREATE DATABASE RetailSalesReportingDB;
 GO
 USE RetailSalesReportingDB;
 GO
 
-/* Setup: normalized sample tables. Execute safely more than once. */
+
 IF OBJECT_ID(N'dbo.customers', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.customers (
@@ -128,8 +117,6 @@ BEGIN
 END;
 IF NOT EXISTS (SELECT 1 FROM dbo.payments WHERE payment_id = 1)
 BEGIN
-    -- Order 1015 deliberately has no payment, despite being marked Completed:
-    -- this is a useful reconciliation exception shown by the LEFT JOIN.
     INSERT INTO dbo.payments (payment_id,order_id,amount,paid_on) VALUES
     (1,1001,51000,'2026-01-05'),(2,1002,4500,'2026-01-05'),
     (3,1003,7000,'2026-01-17'),(4,1004,9300,'2026-02-02'),
@@ -140,10 +127,7 @@ BEGIN
 END;
 GO
 
-/* REPORT 1: TOP FIVE PRODUCTS BY REVENUE
-   Expected: up to 5 rows; product name, units sold and revenue,
-   sorted highest revenue first. Excludes Pending/Cancelled orders.
-*/
+
 SELECT TOP (5) p.product_id, p.product_name,
        SUM(oi.quantity) AS units_sold,
        CAST(SUM(oi.quantity * oi.unit_price) AS DECIMAL(14,2)) AS revenue
@@ -154,10 +138,7 @@ WHERE o.order_status = 'Completed'
 GROUP BY p.product_id, p.product_name
 ORDER BY revenue DESC, p.product_id;
 
-/* REPORT 2: MONTH-WISE SALES
-   Expected: 3 rows (2026-01, 2026-02, 2026-03), with completed
-   order counts and sales amounts. FORMAT demonstrates date formatting.
-*/
+
 SELECT FORMAT(o.order_date, 'yyyy-MM') AS sales_month,
        COUNT(DISTINCT o.order_id) AS completed_orders,
        CAST(SUM(oi.quantity * oi.unit_price) AS DECIMAL(14,2)) AS monthly_sales
@@ -167,9 +148,6 @@ WHERE o.order_status = 'Completed'
 GROUP BY YEAR(o.order_date), MONTH(o.order_date), FORMAT(o.order_date, 'yyyy-MM')
 ORDER BY YEAR(o.order_date), MONTH(o.order_date);
 
-/* REPORT 3: CUSTOMERS WITH MORE THAN THREE ORDERS (HAVING)
-   Expected: Asha Kumar only (4 orders). All statuses count as orders.
-*/
 SELECT c.customer_id, UPPER(c.full_name) AS customer_name_upper,
        COUNT(o.order_id) AS total_orders
 FROM dbo.customers AS c
@@ -178,11 +156,6 @@ GROUP BY c.customer_id, c.full_name
 HAVING COUNT(o.order_id) > 3
 ORDER BY total_orders DESC, c.customer_id;
 
-/* REPORT 4: AVERAGE BASKET VALUE BY CITY
-   Basket = total completed order amount; orders are aggregated BEFORE
-   averaging, preventing multi-item orders from being overweighted.
-   Expected: one row per city with completed orders, with average per order.
-*/
 WITH order_totals AS (
     SELECT o.order_id, c.city,
            SUM(oi.quantity * oi.unit_price) AS basket_value
@@ -199,10 +172,7 @@ FROM order_totals
 GROUP BY city
 ORDER BY city;
 
-/* REPORT 5: ORDERS WITHOUT PAYMENT (LEFT JOIN)
-   Expected: 3 rows: order IDs 1011 (Pending), 1012 (Cancelled),
-   1015 (Completed, payment exception). Includes all order statuses.
-*/
+
 SELECT o.order_id, c.full_name, o.order_date, o.order_status,
        CONCAT('Order ', o.order_id, ' - payment not found') AS payment_message
 FROM dbo.orders AS o
@@ -211,19 +181,12 @@ LEFT JOIN dbo.payments AS pay ON pay.order_id = o.order_id
 WHERE pay.payment_id IS NULL
 ORDER BY o.order_id;
 
-/* REPORT 6: CUSTOMERS WITH NO ORDERS
-   Expected: two rows: Neha Singh and Vikram Roy.
-*/
 SELECT c.customer_id, c.full_name, c.city
 FROM dbo.customers AS c
 LEFT JOIN dbo.orders AS o ON o.customer_id = c.customer_id
 WHERE o.order_id IS NULL
 ORDER BY c.customer_id;
 
-/* REPORT 7: PRODUCT-CATEGORY REVENUE SHARE
-   Expected: Electronics, Furniture, Stationery, Home; percent shares
-   total about 100% (rounding may change the last decimal).
-*/
 WITH category_sales AS (
     SELECT p.category,
            SUM(CAST(oi.quantity * oi.unit_price AS DECIMAL(18,2))) AS category_revenue
@@ -241,10 +204,6 @@ SELECT category,
 FROM category_sales
 ORDER BY category_revenue DESC, category;
 
-/* REPORT 8: DAY WITH THE HIGHEST SALES
-   Expected: 2026-03-25 (two completed orders; 51,700.00 INR).
-   TOP(1) gives one deterministic winner; use TOP(1) WITH TIES to show ties.
-*/
 SELECT TOP (1) o.order_date AS best_sales_day,
        COUNT(DISTINCT o.order_id) AS completed_orders,
        CAST(SUM(oi.quantity * oi.unit_price) AS DECIMAL(14,2)) AS day_sales
@@ -254,11 +213,6 @@ WHERE o.order_status = 'Completed'
 GROUP BY o.order_date
 ORDER BY day_sales DESC, o.order_date ASC;
 
-/* CUSTOMER-FRIENDLY OUTPUT: UPPER, CONCAT, DATEDIFF, FORMAT, ROUND
-   Expected: one row per completed order, formatted date and basket value.
-   DATEDIFF is measured relative to fixed report date 2026-04-01 so results
-   are reproducible, not affected by the date this script is executed.
-*/
 WITH order_totals AS (
     SELECT o.order_id, o.order_date, c.full_name, c.city,
            SUM(oi.quantity * oi.unit_price) AS basket_value
@@ -276,16 +230,10 @@ SELECT order_id,
 FROM order_totals
 ORDER BY order_id;
 
-/* NULL BEHAVIOUR: COUNT(*), COUNT(column), AVG(column)
-   Expected from 15 orders: COUNT(*)=15, COUNT(delivery_days)=9,
-   AVG(delivery_days) = 34/9 = 3.777778 (approximately).
-   COUNT(*) includes ALL rows; COUNT(column) skips NULL values;
-   AVG(column) skips NULL values in numerator AND denominator.
-*/
+
 SELECT COUNT(*) AS all_orders_including_nulls,
        COUNT(delivery_days) AS orders_with_delivery_days,
        CAST(AVG(CAST(delivery_days AS DECIMAL(10,4))) AS DECIMAL(10,4))
           AS avg_non_null_delivery_days
 FROM dbo.orders;
 
-/* END OF REPORTS.SQL */
