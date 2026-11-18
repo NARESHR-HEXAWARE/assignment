@@ -1,10 +1,9 @@
-/* Retail Inventory - 3NF schema. Run first in SQL Server Management Studio. */
+
 IF DB_ID(N'RetailInventoryDB') IS NULL
     CREATE DATABASE RetailInventoryDB;
 GO
 USE RetailInventoryDB;
 GO
-/* Re-runnable for classroom demonstration; drops child before parent. */
 IF OBJECT_ID(N'dbo.Inventory', N'U') IS NOT NULL DROP TABLE dbo.Inventory;
 IF OBJECT_ID(N'dbo.Products', N'U') IS NOT NULL DROP TABLE dbo.Products;
 IF OBJECT_ID(N'dbo.Warehouses', N'U') IS NOT NULL DROP TABLE dbo.Warehouses;
@@ -53,6 +52,3 @@ CREATE TABLE dbo.Inventory (
         REFERENCES dbo.Warehouses(WarehouseID) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 GO
-/* 3NF: CategoryName depends on CategoryID, supplier details on SupplierID,
-   warehouse details on WarehouseID, product attributes on ProductID,
-   and stock quantity on the entire (ProductID, WarehouseID) key. */
