@@ -1,8 +1,4 @@
-/* SET 3 - RETAIL RETURNS AND REFUNDS | Microsoft SQL Server 2022/2025
-   Reproducible demonstration: builds dbo.RR_* tables and inserts SAMPLE data.
-   All reports use completed refunds only. Money amounts are in INR.
-   The sample is illustrative, not the retailer's production data.
-*/
+
 SET NOCOUNT ON;
 GO
 -- Safe rerun: remove only objects created by this assignment.
