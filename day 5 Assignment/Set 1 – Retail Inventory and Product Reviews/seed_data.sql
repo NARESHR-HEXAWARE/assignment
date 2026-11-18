@@ -1,4 +1,4 @@
-/* Run AFTER schema.sql. Contains sample data, four expected failures and DML. */
+
 USE RetailInventoryDB;
 GO
 SET NOCOUNT ON;
