@@ -1,8 +1,4 @@
-/* Hospital Patient Records and Clinical Notes | SQL Server 2025
-   Execute first in SSMS. This script recreates only HospitalClinicalDB.
-   3NF: Department -> Doctor -> Visit <- Patient; Visit -> Billing, Prescription.
-   Clinical note documents are intentionally stored in MongoDB.
-*/
+
 USE master;
 GO
 IF DB_ID(N'HospitalClinicalDB') IS NULL
@@ -10,8 +6,6 @@ IF DB_ID(N'HospitalClinicalDB') IS NULL
 GO
 USE HospitalClinicalDB;
 GO
-/* Child-first cleanup permits rerunning schema.sql after seed_data.sql,
-   including after Billing has been renamed to PatientBilling. */
 IF OBJECT_ID(N'dbo.Prescription', N'U') IS NOT NULL DROP TABLE dbo.Prescription;
 IF OBJECT_ID(N'dbo.PatientBilling', N'U') IS NOT NULL DROP TABLE dbo.PatientBilling;
 IF OBJECT_ID(N'dbo.Billing', N'U') IS NOT NULL DROP TABLE dbo.Billing;
@@ -78,8 +72,4 @@ GO
 CREATE INDEX IX_Visit_Date ON dbo.Visit (visit_date, patient_id);
 CREATE INDEX IX_Doctor_Department ON dbo.Doctor (department_id);
 GO
-/* Referential-policy reasoning:
-   - Department, Patient, Doctor: RESTRICT (NO ACTION), to avoid losing clinical history.
-   - Visit -> Billing/Prescription: CASCADE on visit deletion, to avoid orphan child records.
-     Real clinical systems should generally archive rather than delete visit records.
-*/
+
