@@ -1,34 +1,3 @@
-/*
-  TELECOM USAGE AND BILLING REPORTS — SQL SERVER
-  Deliverable: reports.sql
-
-  Run the entire file in Microsoft SQL Server Management Studio (SSMS).
-  This self-contained demonstration creates TelecomReportingDB and sample data.
-  WARNING: Re-running drops and recreates the FIVE demonstration tables.
-
-  Data model:
-    plans(plan_id, plan_name, monthly_fee, data_limit_mb)
-    subscribers(subscriber_id, subscriber_name, phone_number, circle, plan_id, joined_on)
-    call_records(call_id, subscriber_id, call_started_at, duration_seconds)
-    usage_records(usage_id, subscriber_id, used_at, data_used_mb, session_minutes)
-    invoices(invoice_id, subscriber_id, invoice_number, bill_month, amount_due,
-             amount_paid, issued_on, due_date, paid_on)
-
-  Why usage_records? The four named tables alone do not contain measurable
-  data consumption; this additional table makes data-limit and data-consumer
-  reporting technically possible without misusing call duration as data usage.
-
-  Assumptions:
-  - All call and data usage reports use the CURRENT CALENDAR MONTH.
-  - A subscriber's limit is the monthly data_limit_mb of their current plan.
-  - Revenue is recognized here as collected invoice payments (amount_paid),
-    reported by the invoice's bill_month, not necessarily payment date.
-  - ARPU means the month's collected amount / all subscribers in that circle;
-    circles with no collected amount show zero; no subscriber yields no row.
-  - "No usage" means no calls AND no data events in the current month.
-  - Overdue means unpaid balance > 0 and due_date < today - 15 days.
-  - Amounts are in INR; data is measured in MB, and call time in minutes.
-*/
 
 IF DB_ID(N'TelecomReportingDB') IS NULL
     CREATE DATABASE TelecomReportingDB;
@@ -181,12 +150,7 @@ INSERT INTO dbo.invoices
 (18,6,'INV-2026-0018',@month_start,149,149,@month_start,DATEADD(DAY,20,@month_start),@month_start);
 GO
 
-/* ========================================================================
-   REPORT 1 — TOTAL CALL MINUTES PER PLAN (CURRENT MONTH)
-   Expected columns: plan_name, call_count, total_call_minutes.
-   Expected: one row for EACH of 5 plans (even if no calls), in descending
-   call minutes; durations are accurately converted from seconds to minutes.
-   ======================================================================== */
+
 SELECT p.plan_name,
        COUNT(c.call_id) AS call_count,
        CAST(ROUND(COALESCE(SUM(CAST(c.duration_seconds AS DECIMAL(18,2))),0)/60.0,2)
@@ -200,11 +164,7 @@ LEFT JOIN dbo.call_records AS c
 GROUP BY p.plan_id,p.plan_name
 ORDER BY total_call_minutes DESC, p.plan_name;
 
-/* ========================================================================
-   REPORT 2 — SUBSCRIBERS EXCEEDING MONTHLY DATA LIMIT
-   Expected: subscriber id, name, plan, limit, used MB, excess MB.
-   Sample over-limit subscriber ids: 1, 2, 3, 6, 8.
-   ======================================================================== */
+
 WITH monthly_data AS (
  SELECT s.subscriber_id, s.subscriber_name, p.plan_name, p.data_limit_mb,
         COALESCE(SUM(u.data_used_mb),0) AS total_used_mb
@@ -223,11 +183,7 @@ FROM monthly_data
 WHERE total_used_mb > data_limit_mb
 ORDER BY excess_mb DESC,subscriber_id;
 
-/* ========================================================================
-   REPORT 3 — MONTH-WISE COLLECTED REVENUE
-   Expected: bill_month (yyyy-MM), total_collected, invoiced_amount,
-   outstanding_amount. The latest three invoice months appear.
-   ======================================================================== */
+
 SELECT CONVERT(CHAR(7),i.bill_month,120) AS bill_month,
        SUM(i.amount_paid) AS total_collected,
        SUM(i.amount_due) AS invoiced_amount,
@@ -236,12 +192,6 @@ FROM dbo.invoices AS i
 GROUP BY YEAR(i.bill_month),MONTH(i.bill_month),CONVERT(CHAR(7),i.bill_month,120)
 ORDER BY bill_month;
 
-/* ========================================================================
-   REPORT 4 — INVOICES MORE THAN 15 DAYS OVERDUE
-   Expected: formatted invoice, subscriber, due date, days overdue,
-   unpaid balance, status. Includes unpaid and partly paid bills; excludes
-   paid-in-full bills even if their due dates were long ago.
-   ======================================================================== */
 SELECT CONCAT('TEL-',RIGHT(CONCAT('000000',CAST(i.invoice_id AS VARCHAR(10))),6))
            AS formatted_invoice_number,
        i.invoice_number AS original_invoice_number,
@@ -257,11 +207,6 @@ WHERE i.amount_due > i.amount_paid
   AND i.due_date < DATEADD(DAY,-15,CAST(GETDATE() AS DATE))
 ORDER BY days_overdue DESC,i.invoice_id;
 
-/* ========================================================================
-   REPORT 5 — SUBSCRIBERS WITH NO CURRENT-MONTH USAGE
-   Expected: subscriber_id, subscriber_name, circle, plan_name.
-   Sample: ids 11 and 12 (they have ONLY prior-month activity).
-   ======================================================================== */
 SELECT s.subscriber_id,s.subscriber_name,s.circle,p.plan_name
 FROM dbo.subscribers AS s
 JOIN dbo.plans AS p ON p.plan_id=s.plan_id
@@ -278,13 +223,6 @@ WHERE NOT EXISTS (
 )
 ORDER BY s.subscriber_id;
 
-/* ========================================================================
-   REPORT 6 — ARPU BY CIRCLE (CURRENT INVOICE MONTH)
-   Expected: circle, subscribers, collected_revenue, ARPU_INR.
-   ARPU denominator counts ALL subscribers in circle, including those with
-   no invoice this month. Invoice sums are aggregated FIRST to prevent
-   double-counting customers who have multiple invoices.
-   ======================================================================== */
 WITH current_invoice_totals AS (
  SELECT subscriber_id,SUM(amount_paid) AS paid_this_month
  FROM dbo.invoices
@@ -301,12 +239,6 @@ LEFT JOIN current_invoice_totals AS ci ON ci.subscriber_id=s.subscriber_id
 GROUP BY s.circle
 ORDER BY arpu_inr DESC,s.circle;
 
-/* ========================================================================
-   REPORT 7 — PLAN POPULARITY
-   Expected: plan name, subscriber count, percentage of subscriber base.
-   Sample counts: Basic 2GB=3; Standard 5GB=3; Premium 10GB=2;
-                  Unlimited Plus=2; Student 1GB=2.
-   ======================================================================== */
 SELECT p.plan_name,COUNT(s.subscriber_id) AS subscriber_count,
        CAST(ROUND(100.0*COUNT(s.subscriber_id)/NULLIF(
             (SELECT COUNT(*) FROM dbo.subscribers),0),2)
@@ -314,14 +246,8 @@ SELECT p.plan_name,COUNT(s.subscriber_id) AS subscriber_count,
 FROM dbo.plans AS p
 LEFT JOIN dbo.subscribers AS s ON s.plan_id=p.plan_id
 GROUP BY p.plan_id,p.plan_name
-ORDER BY subscriber_count DESC,p.plan_name;
-
-/* ========================================================================
-   REPORT 8 — TOP 10 DATA CONSUMERS (CURRENT MONTH)
-   Expected: id, name, circle, plan, data_used_mb, used_gb.
-   All subscribers appear when fewer than 10 have current-month data;
-   here exactly 10 have activity. Highest user: id 5 (32800 MB).
-   ======================================================================== */
+ORDER BY subscriber_count DESC,p.plan_name
+  
 SELECT TOP (10) s.subscriber_id,s.subscriber_name,s.circle,p.plan_name,
        CAST(SUM(u.data_used_mb) AS DECIMAL(12,2)) AS data_used_mb,
        CAST(ROUND(SUM(u.data_used_mb)/1024.0,2) AS DECIMAL(12,2)) AS data_used_gb
@@ -333,20 +259,7 @@ WHERE u.used_at >= DATEFROMPARTS(YEAR(GETDATE()),MONTH(GETDATE()),1)
 GROUP BY s.subscriber_id,s.subscriber_name,s.circle,p.plan_name
 ORDER BY data_used_mb DESC,s.subscriber_id;
 
-/* ========================================================================
-   NULL DEMONSTRATION — SUM AND AVG WHEN USAGE ROWS ARE MISSING
 
-   LEFT JOIN retains subscribers with no matching CURRENT-month usage.
-   COUNT(*) counts the placeholder row (therefore >= 1 per subscriber).
-   COUNT(u.usage_id) counts only actual usage rows.
-   SUM(u.data_used_mb) and AVG(u.data_used_mb) ignore NULL inputs, but when
-   there are ZERO non-NULL inputs they return NULL, not zero.
-   COALESCE(SUM(...),0) gives a reporting-friendly zero; retaining the raw
-   NULL AVG correctly conveys that no session average can be computed.
-
-   Expected: subscribers 11 and 12 each have matched_usage_rows = 0,
-   raw_sum_mb = NULL, raw_avg_mb = NULL, sum_for_display_mb = 0.
-   ======================================================================== */
 SELECT s.subscriber_id,s.subscriber_name,
        COUNT(*) AS joined_row_count,
        COUNT(u.usage_id) AS matched_usage_rows,
@@ -361,4 +274,3 @@ LEFT JOIN dbo.usage_records AS u
 GROUP BY s.subscriber_id,s.subscriber_name
 ORDER BY s.subscriber_id;
 
-/* END OF reports.sql */
