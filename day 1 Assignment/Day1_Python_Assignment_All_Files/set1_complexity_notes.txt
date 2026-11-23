@@ -1,0 +1,22 @@
+SET 1 — RETAIL ORDER DESK: COMPLEXITY AND DATA STRUCTURE RATIONALE
+
+1. Searching: linear search O(n) time, O(1) extra space; binary search O(log n)
+   time, O(1) space, requires data sorted by orderId. One 50,000-order synthetic
+   CSV is used; timing is approximate. Lookup test includes 51 distributed IDs.
+2. Sorting: insertion sort O(n^2) worst/average, O(n) best, O(1) extra space;
+   merge sort O(n log n) time and O(n) extra space; Python sorted() typically
+   O(n log n) worst-case with O(n) temporary space. All sort amounts descending.
+   Trace of insertion sort (amounts): start [20,60,10,50,30]
+   pass 1 [60,20,10,50,30]; pass 2 [60,20,10,50,30];
+   pass 3 [60,50,20,10,30].
+3. Duplicates: hash set using (customerId, amount, YYYY-MM-DD HH:MM).
+   Average O(n) time and O(n) space; collisions/pathological hashing can worsen.
+   The example injects one duplicate with a distinct order ID.
+4. Stack: LIFO undo, push/pop amortized O(1). Queue: FIFO dispatch,
+   indexed head gives O(1) dequeue (memory not reclaimed until compaction);
+   built-in list stack and collections.deque queue are practical alternatives.
+5. Refund/change: greedy O(k + output length) after denominations pre-sorted,
+   not universally optimal; with [1,3,4], amount 6, greedy uses [4,1,1]
+   (3 notes), dynamic programming uses [3,3] (2 notes). Unbounded DP costs
+   O(amount * denomination_count) time and O(amount) extra space.
+   Amounts are processed as integer currency units, not binary floats.

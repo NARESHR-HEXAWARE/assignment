@@ -1,0 +1,11 @@
+SET 2 | 100,000 sorted transaction IDs
+best binary binary comparisons: 1 linear comparisons: 50000
+last ID binary comparisons: 17 linear comparisons: 100000
+Sample average comparisons | binary: 15.68 | linear: 50093.43
+Insertion sorted IDs: [2, 3, 1, 4]
+Merge sorted IDs: [2, 3, 1, 4]
+Duplicates within 60 seconds: 1
+Next review: review 1
+Reverse: adjustment 2
+Divide-conquer min,max: (-999.66, 9994.73) time: 0.002176 s
+Brute scan min,max: (-999.66, 9994.73) time: 0.000185 s
