@@ -1,8 +1,0 @@
-SET 3 | 20,000 patients | 1,000 lookups | linear 0.23629 s | binary 0.00211 s
-Sort | selection: 0.07399 s 992 swaps | quick: 0.00187 s 2431 swaps
-Double bookings in test: 1
-Next walk-in: W001
-Recently viewed: P002
-Max compatible appointments (DP): 5 [(0, 15), (15, 35), (35, 55), (55, 75), (75, 95)]
-Earliest-finish greedy: 5 [(0, 15), (15, 35), (35, 55), (55, 75), (75, 95)]
-For unweighted interval scheduling, earliest-finish greedy is also optimal.
